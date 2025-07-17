@@ -1,30 +1,89 @@
 import { logger } from '../utils/logger.js';
 import { createContentGenerator } from '../generators/index.js';
+import { readdir, readFile, stat, writeFile } from 'fs/promises';
+import { join, resolve } from 'path';
+import matter from 'gray-matter';
+import { exec } from 'child_process';
 
 export class CommandHandler {
-    constructor(config) {
+    constructor(config, rateLimiter) {
         this.config = config;
+        this.rateLimiter = rateLimiter;
         this.userStates = new Map(); // Хранение состояний пользователей
         this.contentGenerator = createContentGenerator(config);
     }
 
     async handleMessage(bot, msg) {
-        const chatId = msg.chat.id;
-        const userId = msg.from.id;
-        const text = msg.text;
+        // A callback query has a 'data' property and a 'message' property.
+        // A regular message has a 'text' or other content property, but not 'data'.
+        const isCallback = !!msg.data && !!msg.message;
+
+        const text = isCallback ? msg.data : msg.text;
+        const userId = msg.from?.id;
+        const chatId = isCallback ? msg.message.chat.id : msg.chat?.id;
+        const originalMessage = isCallback ? msg.message : msg;
+
+        // Проверка, что мы смогли определить пользователя и чат
+        if (!userId || !chatId) {
+            logger.warn('Could not determine user or chat ID from message:', msg);
+            return;
+        }
 
         try {
-            // Обработка команд
+            // Check доступа
+            if (!this.isAuthorized(userId)) {
+                await bot.sendMessage(chatId, '❌ У вас нет доступа к этому боту.');
+                logger.warn(`Unauthorized access attempt from user ${userId}`);
+                return;
+            }
+
+            // Check rate limiting
+            const rateLimitResult = this.rateLimiter.canMakeRequest(userId);
+            if (!rateLimitResult.allowed) {
+                const waitTime = this.rateLimiter.formatWaitTime(rateLimitResult.resetIn);
+                await bot.sendMessage(chatId, `⏰ Превышен лимит запросов. Попробуйте через ${waitTime}.`);
+                return;
+            }
+            this.rateLimiter.recordRequest(userId);
+
+
+            // Обработка колбэков от кнопок
+            if (isCallback) {
+                const [action, ...params] = text.split(':');
+                const value = params.join(':');
+
+                switch (action) {
+                    case 'view_draft':
+                        await this.handleViewDraft(bot, msg, chatId, userId, parseInt(value, 10));
+                        break;
+                    case 'mark_for_publication':
+                        await this.handleMarkForPublication(bot, msg, chatId, userId, parseInt(value, 10));
+                        break;
+                    // другие кейсы
+                }
+                return;
+            }
+            
+            // Processing команд
             if (text?.startsWith('/')) {
-                await this.handleCommand(bot, msg);
+                await this.handleCommand(bot, originalMessage);
             } else {
-                // Обработка обычных сообщений (в зависимости от состояния)
-                await this.handleRegularMessage(bot, msg);
+                // Processing обычных сообщений (в зависимости от состояния)
+                await this.handleRegularMessage(bot, originalMessage);
             }
         } catch (error) {
             logger.error(`Error handling message from user ${userId}:`, error);
             await bot.sendMessage(chatId, '💥 Произошла ошибка при обработке сообщения.');
         }
+    }
+
+    isAuthorized(userId) {
+        const adminId = process.env.ADMIN_TELEGRAM_ID;
+        if (!adminId) return false;
+        
+        // Поддержка нескольких админов через запятую
+        const adminIds = adminId.split(',').map(id => parseInt(id.trim()));
+        return adminIds.includes(userId);
     }
 
     async handleCommand(bot, msg) {
@@ -68,6 +127,23 @@ export class CommandHandler {
         }
     }
 
+    async handleStart(bot, chatId) {
+        const welcomeMessage = `
+👋 *Добро пожаловать в QContent!*
+
+Я ваш AI ассистент для создания контента. Вот что я умею:
+
+- */generate [тема]* - Создать черновик статьи на заданную тему.
+- */drafts* - Показать список всех черновиков.
+- */publish* - Опубликовать отмеченные статьи.
+- */help* - Показать это сообщение.
+
+Для начала, попробуйте сгенерировать вашу первую статью!
+Например: \`/generate Как открыть кофейню в Эдинбурге\`
+        `;
+        await bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
+    }
+
     async handleRegularMessage(bot, msg) {
         const chatId = msg.chat.id;
         const userId = msg.from.id;
@@ -78,7 +154,7 @@ export class CommandHandler {
             return;
         }
 
-        // Обработка состояний (будет расширено позже)
+        // Processing состояний (будет расширено позже)
         switch (userState.action) {
             case 'waiting_for_topic':
                 await this.handleGenerate(bot, chatId, userId, msg.text);
@@ -88,190 +164,163 @@ export class CommandHandler {
         }
     }
 
-    async handleStart(bot, chatId) {
-        const welcomeMessage = `
-🤖 *Добро пожаловать в Content Generator!*
-
-Я помогу вам создавать качественные статьи с помощью AI.
-
-*Основные команды:*
-• /generate "тема" - Создать новую статью
-• /templates - Доступные шаблоны
-• /drafts - Управление черновиками
-• /settings - Настройки
-• /help - Подробная справка
-
-*Пример использования:*
-\`/generate "Искусственный интеллект в 2024"\`
-
-Готовы начать? 🚀
-        `;
-
-        await bot.sendMessage(chatId, welcomeMessage, { 
-            parse_mode: 'Markdown',
-            disable_web_page_preview: true 
-        });
-    }
-
     async handleGenerate(bot, chatId, userId, topic) {
-        if (!topic || topic.trim() === '') {
-            await bot.sendMessage(chatId, `
-❓ *Укажите тему для статьи*
-
-Примеры:
-• \`/generate "Машинное обучение"\`
-• \`/generate "Здоровое питание"\`
-• \`/generate "Веб-разработка"\`
-
-Или просто отправьте тему следующим сообщением.
-            `, { parse_mode: 'Markdown' });
-            
+        if (!topic || topic.trim().length === 0) {
             this.userStates.set(userId, { action: 'waiting_for_topic' });
+            await bot.sendMessage(chatId, 'Пожалуйста, укажите тему для генерации статьи. \nНапример: /generate Лучшие места для зимовки в Европе');
             return;
         }
 
-        // Очищаем состояние пользователя
-        this.userStates.delete(userId);
-
-        const statusMessage = await bot.sendMessage(chatId, `
-🎯 *Генерирую статью на тему:* "${topic}"
-
-⏳ Это займет 1-2 минуты...
-📝 Создаю контент с помощью AI
-🔍 Генерирую описание и теги
-🖼️ Подбираю подходящее изображение
-📄 Формирую итоговый файл
-
-_Пожалуйста, подождите..._
-        `, { parse_mode: 'Markdown' });
-
         try {
+            await bot.sendMessage(chatId, '⏳ *Начинаю генерацию статьи...* Это может занять несколько минут.', { parse_mode: 'Markdown' });
+
             logger.info(`Starting content generation for topic: "${topic}" by user ${userId}`);
-            
-            // Генерация контента
-            const result = await this.contentGenerator.generateCompleteArticle({
-                topic: topic,
-                template: 'default',
-                variables: {
-                    target_audience: 'широкая аудитория',
-                    style: 'информативный и доступный'
-                }
-            });
 
-            if (result.success) {
-                await bot.editMessageText(`
-✅ *Статья готова!*
+            const article = await this.contentGenerator.generateCompleteArticle(topic);
+            const finalMessage = `
+✅ *Статья успешно сгенерирована!*
 
-📝 **Тема:** "${result.topic}"
-📊 **Статус:** Черновик
-💾 **Сохранено в:** ${result.file.filename}
+**Тема:** ${article.title}
+**Файл:** \`${article.filename}\`
 
-📈 **Статистика:**
-• Слов: ${result.content.wordCount}
-• Время чтения: ${result.content.readingTime.text}
-• Размер: ${Math.round(result.file.size / 1024)} КБ
-• AI модель: ${result.metadata.model || 'N/A'}
-
-*Следующие шаги:*
-• /drafts - Просмотреть черновики
-• Редактировать и опубликовать
-
-🎉 Генерация завершена!
-                `, {
-                    chat_id: chatId,
-                    message_id: statusMessage.message_id,
-                    parse_mode: 'Markdown'
-                });
-
-            } else {
-                await bot.editMessageText(`
-❌ *Ошибка генерации*
-
-🎯 Тема: "${topic}"
-💥 Ошибка: ${result.error}
-
-Попробуйте:
-• Проверить доступность AI провайдеров
-• Изменить формулировку темы
-• Попробовать позже
-
-_Если проблема повторится, обратитесь к администратору._
-                `, {
-                    chat_id: chatId,
-                    message_id: statusMessage.message_id,
-                    parse_mode: 'Markdown'
-                });
-            }
-
+Теперь вы можете найти ее в списке черновиков с помощью команды /drafts и пометить для публикации.
+            `;
+            await bot.sendMessage(chatId, finalMessage, { parse_mode: 'Markdown' });
         } catch (error) {
             logger.error('Content generation error:', error);
+            await bot.sendMessage(chatId, `❌ *Ошибка при генерации статьи:* ${error.message}`);
+        } finally {
+            this.userStates.delete(userId);
+        }
+    }
+
+    async handleDrafts(bot, chatId, userId) {
+        try {
+            const draftsDir = join(this.contentGenerator.markdownGenerator.outputDir, 'drafts');
+
+            // Проверяем, существует ли директория
+            try {
+                await stat(draftsDir);
+            } catch (dirError) {
+                if (dirError.code === 'ENOENT') {
+                    await bot.sendMessage(chatId, '📂 Папка с черновиками еще не создана. Сначала сгенерируйте статью.');
+                    return;
+                }
+                throw dirError; // Другие ошибки пробрасываем выше
+            }
+
+            const files = await readdir(draftsDir);
+            const markdownFiles = files.filter(file => file.endsWith('.md'));
+
+            if (markdownFiles.length === 0) {
+                await bot.sendMessage(chatId, '📭 В папке нет черновиков.');
+                return;
+            }
             
-            await bot.editMessageText(`
-💥 *Критическая ошибка*
+            // Сохраняем список файлов в состояние пользователя
+            this.userStates.set(userId, { command: 'drafts', files: markdownFiles });
 
-Не удалось сгенерировать статью.
-Попробуйте позже или обратитесь к администратору.
+            const keyboard = markdownFiles.map((file, index) => {
+                const shortName = file.length > 50 ? `${file.substring(0, 50)}...` : file;
+                return [{ text: shortName, callback_data: `view_draft:${index}` }];
+            });
 
-Ошибка: ${error.message}
-            `, {
-                chat_id: chatId,
-                message_id: statusMessage.message_id,
+            await bot.sendMessage(chatId, '📝 *Ваши черновики:*', {
+                reply_markup: {
+                    inline_keyboard: keyboard,
+                },
                 parse_mode: 'Markdown'
+            });
+
+        } catch (error) {
+            logger.error(`Failed to get drafts list for user ${userId}:`, error);
+            await bot.sendMessage(chatId, '❌ Не удалось получить список черновиков.');
+        }
+    }
+
+    async handleViewDraft(bot, callbackQuery, chatId, userId, draftIndex) {
+        try {
+            const state = this.userStates.get(userId);
+            if (!state || state.command !== 'drafts' || !state.files) {
+                await bot.sendMessage(chatId, '⚠️ Список черновиков устарел. Пожалуйста, вызовите /drafts снова.');
+                await bot.answerCallbackQuery(callbackQuery.id);
+                return;
+            }
+
+            const fileName = state.files[draftIndex];
+            if (!fileName) {
+                await bot.sendMessage(chatId, '❌ Неверный индекс черновика. Пожалуйста, вызовите /drafts снова.');
+                await bot.answerCallbackQuery(callbackQuery.id);
+                return;
+            }
+
+            const filePath = join(this.contentGenerator.markdownGenerator.outputDir, 'drafts', fileName);
+            const content = await readFile(filePath, 'utf-8');
+
+            // Отправляем укороченную версию или полный текст
+            const message = `📄 *Черновик: ${fileName}*\n\n---\n\n${content.substring(0, 3500)}...`;
+
+            await bot.sendMessage(chatId, message, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '✅ Пометить для публикации', callback_data: `mark_for_publication:${draftIndex}` }],
+                        [{ text: '🗑️ Удалить черновик (скоро)', callback_data: `delete_draft:${draftIndex}` }]
+                    ]
+                }
+            });
+            await bot.answerCallbackQuery(callbackQuery.id);
+
+        } catch (error) {
+            logger.error(`Failed to read draft for user ${userId}:`, error);
+            await bot.sendMessage(chatId, `💥 Не удалось прочитать черновик.`);
+            await bot.answerCallbackQuery(callbackQuery.id, { text: '💥 Ошибка при чтении черновика' });
+        }
+    }
+
+    async handleMarkForPublication(bot, callbackQuery, chatId, userId, draftIndex) {
+        try {
+            const state = this.userStates.get(userId);
+            if (!state || state.command !== 'drafts' || !state.files) {
+                await bot.sendMessage(chatId, '⚠️ Список черновиков устарел. Пожалуйста, вызовите /drafts снова.');
+                await bot.answerCallbackQuery(callbackQuery.id);
+                return;
+            }
+
+            const fileName = state.files[draftIndex];
+            if (!fileName) {
+                await bot.sendMessage(chatId, '❌ Неверный индекс черновика. Пожалуйста, вызовите /drafts снова.');
+                await bot.answerCallbackQuery(callbackQuery.id);
+                return;
+            }
+
+            const filePath = join(this.contentGenerator.markdownGenerator.outputDir, 'drafts', fileName);
+            
+            // Читаем файл, изменяем frontmatter и сохраняем
+            const fileContent = await readFile(filePath, 'utf-8');
+            const { data, content } = matter(fileContent);
+            data.publish = true;
+            
+            const newContent = matter.stringify(content, data);
+            await writeFile(filePath, newContent, 'utf-8');
+            
+            await bot.answerCallbackQuery(callbackQuery.id, {
+                text: `✅ Статья "${fileName}" помечена для публикации!`
+            });
+            
+            await bot.editMessageReplyMarkup( {inline_keyboard: []} , {
+                chat_id: chatId,
+                message_id: callbackQuery.message.message_id
+            });
+
+        } catch (error) {
+            logger.error(`Failed to mark draft for publication for user ${userId}:`, error);
+            await bot.answerCallbackQuery(callbackQuery.id, {
+                text: '❌ Ошибка при пометке статьи для публикации'
             });
         }
     }
 
-    async handleTemplates(bot, chatId) {
-        const templatesMessage = `
-📋 *Доступные шаблоны:*
-
-1️⃣ **Универсальная статья** (по умолчанию)
-   • Подходит для любых тем
-   • Информативный стиль
-   • 1500-2000 слов
-
-2️⃣ **Техническая статья** _(скоро)_
-   • Для IT и технических тем
-   • С примерами кода
-   • Пошаговые инструкции
-
-3️⃣ **Лайфстайл статья** _(скоро)_
-   • Личная история
-   • Практические советы
-   • Легкий стиль
-
-*Использование:*
-\`/generate "ваша тема"\` - использует базовый шаблон
-
-_В будущих версиях можно будет выбирать шаблон._
-        `;
-
-        await bot.sendMessage(chatId, templatesMessage, { 
-            parse_mode: 'Markdown',
-            disable_web_page_preview: true 
-        });
-    }
-
-    async handleDrafts(bot, chatId, userId) {
-        const draftsMessage = `
-📂 *Управление черновиками*
-
-_Функция в разработке..._
-
-Планируемые возможности:
-• 📋 Список всех черновиков
-• ✏️ Редактирование
-• 👁️ Предпросмотр
-• 🚀 Публикация в блог
-• 🗑️ Удаление
-
-Пока что файлы сохраняются в папку \`drafts/\`
-        `;
-
-        await bot.sendMessage(chatId, draftsMessage, { 
-            parse_mode: 'Markdown' 
-        });
-    }
 
     async handleSettings(bot, chatId, userId) {
         const settingsMessage = `
@@ -298,7 +347,7 @@ _Функция изменения настроек в разработке..._
         const helpMessage = `
 📚 *Справка по Content Generator*
 
-*Основные команды:*
+*Main commands:*
 
 🚀 \`/start\` - Начать работу
 📝 \`/generate "тема"\` - Создать статью
@@ -397,9 +446,9 @@ _Функция изменения настроек в разработке..._
 ❌ *Ошибка проверки статуса*
 
 Не удалось получить информацию о состоянии системы.
-Попробуйте позже.
+Try again later.
 
-Ошибка: ${error.message}
+Error: ${error.message}
             `, { parse_mode: 'Markdown' });
         }
     }
@@ -449,9 +498,9 @@ _Функция изменения настроек в разработке..._
 
 💥 Не удалось синхронизировать файлы с блогом.
 
-Ошибка: ${syncResult.error}
+Error: ${syncResult.error}
 
-Попробуйте позже или обратитесь к администратору.
+Try again later или обратитесь к администратору.
                 `, {
                     chat_id: chatId,
                     message_id: statusMessage.message_id,
@@ -466,87 +515,83 @@ _Функция изменения настроек в разработке..._
 ❌ *Критическая ошибка синхронизации*
 
 Не удалось выполнить синхронизацию.
-Попробуйте позже.
+Try again later.
 
-Ошибка: ${error.message}
+Error: ${error.message}
             `, { parse_mode: 'Markdown' });
         }
     }
 
     async handlePublish(bot, chatId, userId, fileName) {
-        if (!fileName || fileName.trim() === '') {
-            await bot.sendMessage(chatId, `
-❓ *Укажите имя файла для публикации*
-
-Примеры:
-• \`/publish article-name.md\`
-• \`/publish 2024-12-16-my-article.md\`
-
-Используйте /drafts для просмотра доступных черновиков.
-            `, { parse_mode: 'Markdown' });
-            return;
-        }
+        const statusMessage = await bot.sendMessage(chatId, '🚀 *Начинаю публикацию...*', { parse_mode: 'Markdown' });
 
         try {
-            const statusMessage = await bot.sendMessage(chatId, `
-📰 *Публикую черновик:* "${fileName}"
+            await bot.editMessageText('🔄 Синхронизирую файлы...', {
+                chat_id: chatId,
+                message_id: statusMessage.message_id,
+                parse_mode: 'Markdown'
+            });
 
-⏳ Копирую в основную папку блога...
-            `, { parse_mode: 'Markdown' });
+            const syncOutput = await this.runScript('scripts/sync-obsidian.js');
+            logger.info(syncOutput);
 
-            const publishResult = await this.contentGenerator.publishDraft(fileName);
+            await bot.editMessageText('🏗️ Собираю сайт...', {
+                chat_id: chatId,
+                message_id: statusMessage.message_id,
+                parse_mode: 'Markdown'
+            });
+            
+            const buildOutput = await this.runScript(null, 'npm run build');
+            logger.info(buildOutput);
 
-            if (publishResult.success) {
-                await bot.editMessageText(`
-✅ *Черновик опубликован!*
-
-📝 **Файл:** ${fileName}
-📂 **Перемещен в:** основную папку блога
-🔗 **Готов к синхронизации** с сайтом
-
-*Следующие шаги:*
-• Файл готов для sync-obsidian.js
-• Будет опубликован при следующей сборке сайта
-
-🎉 Публикация завершена!
-                `, {
-                    chat_id: chatId,
-                    message_id: statusMessage.message_id,
-                    parse_mode: 'Markdown'
-                });
-
-            } else {
-                let errorMessage = `❌ *Ошибка публикации*\n\n`;
-                
-                if (publishResult.error === 'DRAFT_NOT_FOUND') {
-                    errorMessage += `📂 Черновик "${fileName}" не найден.\n\n`;
-                    errorMessage += `Проверьте:\n`;
-                    errorMessage += `• Правильность имени файла\n`;
-                    errorMessage += `• Существование файла в папке drafts\n`;
-                    errorMessage += `• Используйте /drafts для просмотра доступных черновиков`;
-                } else {
-                    errorMessage += `💥 ${publishResult.message || publishResult.error}\n\n`;
-                    errorMessage += `Попробуйте позже или обратитесь к администратору.`;
-                }
-
-                await bot.editMessageText(errorMessage, {
-                    chat_id: chatId,
-                    message_id: statusMessage.message_id,
-                    parse_mode: 'Markdown'
-                });
-            }
+            await bot.editMessageText('✅ *Публикация завершена!*', {
+                chat_id: chatId,
+                message_id: statusMessage.message_id,
+                parse_mode: 'Markdown'
+            });
 
         } catch (error) {
-            logger.error('Publish command error:', error);
-            
-            await bot.sendMessage(chatId, `
-❌ *Критическая ошибка публикации*
-
-Не удалось опубликовать черновик "${fileName}".
-Попробуйте позже.
-
-Ошибка: ${error.message}
-            `, { parse_mode: 'Markdown' });
+            logger.error(`Publication failed for user ${userId}:`, error);
+            await bot.editMessageText(`💥 *Ошибка публикации:* ${error.message}`, {
+                chat_id: chatId,
+                message_id: statusMessage.message_id,
+                parse_mode: 'Markdown'
+            });
         }
+    }
+
+    runScript(scriptPath, command = null) {
+        return new Promise((resolve, reject) => {
+            const cmd = command ? command : `node ${scriptPath}`;
+            exec(cmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`exec error: ${error}`);
+                    return reject(new Error(stderr || stdout));
+                }
+                resolve(stdout);
+            });
+        });
+    }
+
+
+    async handleSettings(bot, chatId, userId) {
+        const settingsMessage = `
+⚙️ *Настройки генерации*
+
+*Текущие настройки:*
+• 🌐 Язык: Русский
+• 📝 Объем: 1500-2000 слов
+• 🎨 Стиль: Информативный
+• 🖼️ Изображения: Включены
+• 🔗 Автопубликация: Отключена
+
+_Функция изменения настроек в разработке..._
+
+По умолчанию используются настройки из конфигурации.
+        `;
+
+        await bot.sendMessage(chatId, settingsMessage, { 
+            parse_mode: 'Markdown' 
+        });
     }
 } 

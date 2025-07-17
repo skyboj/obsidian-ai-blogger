@@ -1,14 +1,27 @@
 #!/usr/bin/env node
 
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { readFileSync } from 'fs';
 import { startBot } from './bot/index.js';
 import { logger } from './utils/logger.js';
+
+// Explicitly load .env and override process.env
+try {
+    const envConfig = dotenv.parse(readFileSync('.env'));
+    for (const k in envConfig) {
+        process.env[k] = envConfig[k];
+    }
+    logger.info('✅ .env file loaded successfully and variables are set.');
+} catch (error) {
+    logger.warn('⚠️ Could not find or parse .env file. Relying on system environment variables.');
+}
+
 
 async function main() {
     try {
         logger.info('🚀 Starting Content Generator...');
         
-        // Проверка обязательных переменных окружения
+        // Check required environment variables
         const requiredEnvVars = [
             'TELEGRAM_BOT_TOKEN',
             'OPENAI_API_KEY',
@@ -23,7 +36,12 @@ async function main() {
             process.exit(1);
         }
         
-        // Запуск бота
+        const apiKey = process.env.OPENAI_API_KEY;
+        if (apiKey) {
+            logger.info(`🔑 Using OpenAI API Key starting with: ${apiKey.substring(0, 5)}...${apiKey.substring(apiKey.length - 4)}`);
+        }
+
+        // Starting bot
         await startBot();
         
         logger.info('✅ Content Generator started successfully!');
@@ -45,7 +63,6 @@ async function main() {
     }
 }
 
-// Запуск приложения только если файл вызван напрямую
-if (import.meta.url === `file://${process.argv[1]}`) {
-    main();
-} 
+// Starting application only if file is called directly
+console.log('Starting bot...');
+main(); 

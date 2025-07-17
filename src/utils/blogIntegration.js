@@ -3,7 +3,7 @@ import { join, dirname, resolve } from 'path';
 import { logger } from './logger.js';
 
 /**
- * Утилита для интеграции с основным блоговым приложением Obsidian Blogger
+ * Utility for integration with main blog application Obsidian Blogger
  */
 export class BlogIntegration {
     constructor(config = {}) {
@@ -20,7 +20,7 @@ export class BlogIntegration {
     }
 
     /**
-     * Копирование файла из генератора в папку блога
+     * Copy file from generator to blog folder
      */
     async copyToBlogs(filePath, options = {}) {
         try {
@@ -30,24 +30,24 @@ export class BlogIntegration {
                 overwrite = false
             } = options;
 
-            // Определяем целевую папку
+            // Determine target folder
             const targetFolder = publishReady 
                 ? this.blogFolderPath 
                 : join(this.blogFolderPath, this.draftsSubfolder);
 
-            // Если указана подпапка
+            // If subfolder specified
             const finalTargetFolder = subfolder 
                 ? join(targetFolder, subfolder) 
                 : targetFolder;
 
-            // Создаем папку если не существует
+            // Create folder if not exists
             await this.ensureDirectoryExists(finalTargetFolder);
 
-            // Получаем имя файла
+            // Get filename
             const fileName = filePath.split('/').pop();
             const targetPath = join(finalTargetFolder, fileName);
 
-            // Проверяем существование файла
+            // Check file existence
             if (!overwrite) {
                 try {
                     await stat(targetPath);
@@ -55,14 +55,14 @@ export class BlogIntegration {
                     return {
                         success: false,
                         error: 'FILE_EXISTS',
-                        message: 'Файл уже существует в целевой папке'
+                        message: 'File already exists in target folder'
                     };
                 } catch (error) {
-                    // Файл не существует - это хорошо
+                    // File does not exist - this is good
                 }
             }
 
-            // Копируем файл
+            // Copy file
             await copyFile(filePath, targetPath);
 
             const status = publishReady ? 'published' : 'draft';
@@ -86,19 +86,19 @@ export class BlogIntegration {
     }
 
     /**
-     * Автоматическое копирование всех новых файлов
+     * Automatic copying of all new files
      */
     async syncNewFiles() {
         try {
             logger.info('🔄 Starting blog sync...');
 
-            // Получаем список файлов из генератора
+            // Get list of files from generator
             const generatorFiles = await this.getGeneratorFiles();
             
-            // Получаем список файлов в блоге
+            // Get list of files in blog
             const blogFiles = await this.getBlogFiles();
 
-            // Находим новые файлы
+            // Find new files
             const newFiles = generatorFiles.filter(genFile => {
                 return !blogFiles.some(blogFile => 
                     blogFile.name === genFile.name
@@ -120,7 +120,7 @@ export class BlogIntegration {
 
             for (const file of newFiles) {
                 const result = await this.copyToBlogs(file.path, {
-                    publishReady: false, // По умолчанию в черновики
+                    publishReady: false, // Default to drafts
                     overwrite: false
                 });
 
@@ -157,25 +157,25 @@ export class BlogIntegration {
     }
 
     /**
-     * Публикация черновика (перемещение из drafts в основную папку)
+     * Draft publication (перемещение из drafts в основную папку)
      */
     async publishDraft(fileName) {
         try {
             const draftPath = join(this.blogFolderPath, this.draftsSubfolder, fileName);
             const publishPath = join(this.blogFolderPath, fileName);
 
-            // Проверяем существование черновика
+            // Check draft existence
             try {
                 await stat(draftPath);
             } catch (error) {
                 return {
                     success: false,
                     error: 'DRAFT_NOT_FOUND',
-                    message: 'Черновик не найден'
+                    message: 'Черновик not found'
                 };
             }
 
-            // Копируем в основную папку
+            // Copy to main folder
             await copyFile(draftPath, publishPath);
 
             logger.success(`📰 Published: ${fileName}`);
@@ -184,7 +184,7 @@ export class BlogIntegration {
                 success: true,
                 draftPath,
                 publishPath,
-                message: 'Статья опубликована'
+                message: 'Статья published'
             };
 
         } catch (error) {
@@ -197,14 +197,14 @@ export class BlogIntegration {
     }
 
     /**
-     * Получение списка файлов из генератора
+     * Getting списка файлов из генератора
      */
     async getGeneratorFiles() {
         try {
             const files = [];
             const outputDir = resolve(this.generatorOutputDir);
             
-            // Сканируем output папку
+            // Scan output folder
             await this.scanDirectory(outputDir, files, '.md');
             
             // Сканируем drafts папку
@@ -224,7 +224,7 @@ export class BlogIntegration {
     }
 
     /**
-     * Получение списка файлов из блога
+     * Getting списка файлов из блога
      */
     async getBlogFiles() {
         try {
@@ -279,7 +279,7 @@ export class BlogIntegration {
     }
 
     /**
-     * Создание директории если не существует
+     * Creating директории если не существует
      */
     async ensureDirectoryExists(dirPath) {
         try {
@@ -292,7 +292,7 @@ export class BlogIntegration {
     }
 
     /**
-     * Проверка доступности папки блога
+     * Check доступности папки блога
      */
     async checkBlogFolderAccess() {
         try {
@@ -332,7 +332,7 @@ export class BlogIntegration {
     }
 
     /**
-     * Получение статистики интеграции
+     * Getting статистики интеграции
      */
     async getIntegrationStats() {
         try {
@@ -368,7 +368,7 @@ export class BlogIntegration {
     }
 
     /**
-     * Создание символической ссылки (для продвинутой интеграции)
+     * Creating символической ссылки (для продвинутой интеграции)
      */
     async createSymlink() {
         try {

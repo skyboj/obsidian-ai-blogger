@@ -92,7 +92,7 @@ export class UnsplashProvider extends BaseImageProvider {
     }
 
     /**
-     * Обработка фото из Unsplash API
+     * Processing фото из Unsplash API
      */
     processUnsplashPhoto(photo) {
         return {
@@ -144,7 +144,7 @@ export class UnsplashProvider extends BaseImageProvider {
     }
 
     /**
-     * Получение случайного изображения
+     * Getting случайного изображения
      */
     async getRandomImage(options = {}) {
         try {
@@ -180,7 +180,7 @@ export class UnsplashProvider extends BaseImageProvider {
     }
 
     /**
-     * Получение информации об изображении по ID
+     * Getting информации об изображении по ID
      */
     async getImageById(photoId) {
         try {
@@ -211,7 +211,7 @@ export class UnsplashProvider extends BaseImageProvider {
     }
 
     /**
-     * Получение коллекций
+     * Getting коллекций
      */
     async getCollections(options = {}) {
         try {
@@ -295,7 +295,7 @@ export class UnsplashProvider extends BaseImageProvider {
     }
 
     /**
-     * Получение URL для скачивания изображения нужного размера
+     * Getting URL для скачивания изображения нужного размера
      */
     getImageUrl(photo, size = 'regular') {
         if (photo.sizes && photo.sizes[size]) {
@@ -313,7 +313,7 @@ export class UnsplashProvider extends BaseImageProvider {
     }
 
     /**
-     * Создание HTML атрибуции
+     * Creating HTML атрибуции
      */
     getAttributionHtml(photo) {
         return `Photo by <a href="${photo.authorUrl}?utm_source=your_app&utm_medium=referral">${photo.author}</a> on <a href="https://unsplash.com/?utm_source=your_app&utm_medium=referral">Unsplash</a>`;

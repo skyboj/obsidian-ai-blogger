@@ -1,19 +1,19 @@
 import { writeFile, mkdir, readFile } from 'fs/promises';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import matter from 'gray-matter';
 import slugify from 'slugify';
 import { logger } from '../utils/logger.js';
 
 /**
- * Генератор Markdown файлов
+ * Markdown File Generator
  */
 export class MarkdownGenerator {
     constructor(outputDir = './output') {
-        this.outputDir = outputDir;
+        this.outputDir = resolve(process.cwd(), outputDir);
     }
 
     /**
-     * Создание Markdown файла из контента
+     * Create Markdown file from content
      */
     async generateMarkdownFile(options) {
         const {
@@ -31,13 +31,13 @@ export class MarkdownGenerator {
             // Подготовка frontmatter
             const finalFrontmatter = this.prepareFrontmatter(title, frontmatter);
             
-            // Создание полного контента с frontmatter
+            // Creating полного контента с frontmatter
             const markdownContent = this.buildMarkdownContent(finalFrontmatter, content);
             
             // Определение пути для сохранения
             const outputPath = this.getOutputPath(finalFilename, subfolder);
             
-            // Создание директории если не существует
+            // Creating директории если не существует
             await this.ensureDirectoryExists(dirname(outputPath));
             
             // Сохранение файла
@@ -114,21 +114,15 @@ export class MarkdownGenerator {
     }
 
     /**
-     * Создание полного Markdown контента с frontmatter
+     * Creating полного Markdown контента с frontmatter
      */
     buildMarkdownContent(frontmatter, content) {
-        const frontmatterString = matter.stringify('', frontmatter);
-        
-        // Убираем пустую строку после frontmatter и добавляем контент
-        const cleanFrontmatter = frontmatterString.replace(/^---\n\n---$/m, '---\n---');
-        
-        return cleanFrontmatter.replace(/^---\n([\s\S]*?)\n---$/, (match, fm) => {
-            return `---\n${fm}\n---\n\n${content}`;
-        });
+        // `matter.stringify` правильно объединяет frontmatter и контент
+        return matter.stringify(content, frontmatter);
     }
 
     /**
-     * Получение полного пути для сохранения
+     * Getting полного пути для сохранения
      */
     getOutputPath(filename, subfolder = null) {
         if (subfolder) {
@@ -138,7 +132,7 @@ export class MarkdownGenerator {
     }
 
     /**
-     * Создание директории если не существует
+     * Creating директории если не существует
      */
     async ensureDirectoryExists(dirPath) {
         try {
@@ -151,7 +145,7 @@ export class MarkdownGenerator {
     }
 
     /**
-     * Создание черновика статьи
+     * Creating черновика статьи
      */
     async createDraft(title, content, frontmatter = {}) {
         const draftFrontmatter = {
@@ -169,7 +163,7 @@ export class MarkdownGenerator {
     }
 
     /**
-     * Создание готовой статьи для публикации
+     * Creating готовой статьи для публикации
      */
     async createArticle(title, content, frontmatter = {}) {
         const articleFrontmatter = {
@@ -223,7 +217,7 @@ export class MarkdownGenerator {
     }
 
     /**
-     * Получение метаданных файла
+     * Getting метаданных файла
      */
     async getFileMetadata(filePath) {
         try {
@@ -279,7 +273,7 @@ export class MarkdownGenerator {
             }
         }
         
-        // Проверка типов данных
+        // Check типов данных
         if (frontmatter.tags && !Array.isArray(frontmatter.tags)) {
             errors.push('Tags must be an array');
         }
@@ -295,7 +289,7 @@ export class MarkdownGenerator {
     }
 
     /**
-     * Создание резервной копии
+     * Creating резервной копии
      */
     async createBackup(filePath) {
         try {

@@ -15,23 +15,23 @@ export class RateLimiter {
     }
 
     /**
-     * Проверка возможности выполнения запроса
+     * Check возможности выполнения запроса
      */
     canMakeRequest(userId) {
         const now = Date.now();
         const userData = this.getUserData(userId);
         
-        // Проверка burst limit (последовательные запросы)
+        // Check burst limit (последовательные запросы)
         if (this.checkBurstLimit(userData, now)) {
             return { allowed: false, reason: 'burst_limit', resetIn: 60000 };
         }
         
-        // Проверка часового лимита
+        // Check часового лимита
         if (this.checkHourlyLimit(userData, now)) {
             return { allowed: false, reason: 'hourly_limit', resetIn: this.getHourlyResetTime(userData, now) };
         }
         
-        // Проверка дневного лимита
+        // Check дневного лимита
         if (this.checkDailyLimit(userData, now)) {
             return { allowed: false, reason: 'daily_limit', resetIn: this.getDailyResetTime(userData, now) };
         }
@@ -53,7 +53,7 @@ export class RateLimiter {
     }
 
     /**
-     * Получение данных пользователя
+     * Getting данных пользователя
      */
     getUserData(userId) {
         if (!this.userRequests.has(userId)) {
@@ -68,7 +68,7 @@ export class RateLimiter {
     }
 
     /**
-     * Проверка burst limit
+     * Check burst limit
      */
     checkBurstLimit(userData, now) {
         const timeSinceLastRequest = now - userData.lastRequest;
@@ -88,7 +88,7 @@ export class RateLimiter {
     }
 
     /**
-     * Проверка часового лимита
+     * Check часового лимита
      */
     checkHourlyLimit(userData, now) {
         const oneHourAgo = now - (60 * 60 * 1000);
@@ -100,7 +100,7 @@ export class RateLimiter {
     }
 
     /**
-     * Проверка дневного лимита
+     * Check дневного лимита
      */
     checkDailyLimit(userData, now) {
         const oneDayAgo = now - (24 * 60 * 60 * 1000);
@@ -135,7 +135,7 @@ export class RateLimiter {
     }
 
     /**
-     * Получение статистики пользователя
+     * Getting статистики пользователя
      */
     getUserStats(userId) {
         const userData = this.getUserData(userId);
@@ -198,7 +198,7 @@ export class RateLimiter {
     }
 
     /**
-     * Получение общей статистики
+     * Getting общей статистики
      */
     getGlobalStats() {
         const now = Date.now();

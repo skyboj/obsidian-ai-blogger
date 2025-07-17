@@ -10,8 +10,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "content:generate": "node content-generator/src/cli.js",
-    "content:bot": "node content-generator/src/index.js"
+    "content:generate": "node src/cli.js",
+    "content:bot": "node src/index.js"
   },
   "keywords": [
     "astro",
@@ -23,13 +23,22 @@
   ],
   "dependencies": {
     "@astrojs/mdx": "^4.0.0",
+    "@astrojs/rss": "^4.0.12",
     "@astrojs/sitemap": "^3.2.2",
     "@astrojs/tailwind": "^6.0.0",
     "@types/node": "^24.0.14",
     "astro": "^5.0.0",
     "astro-expressive-code": "^0.38.3",
+    "axios": "^1.10.0",
+    "dotenv": "^16.0.3",
+    "gray-matter": "^4.0.3",
     "mermaid": "^11.9.0",
+    "node-telegram-bot-api": "^0.64.0",
+    "openai": "^4.28.4",
     "remark-mermaid": "^0.2.0",
-    "tailwindcss": "^3.4.17"
+    "slugify": "^1.6.6",
+    "tailwindcss": "^3.4.17",
+    "unsplash-js": "^7.0.15",
+    "yaml": "^2.3.4"
   }
 }

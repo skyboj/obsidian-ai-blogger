@@ -9,12 +9,12 @@ export class RateLimiter {
             burst_limit: 3
         };
         
-        // Хранилища для отслеживания запросов
+        // Storage for tracking requests
         this.hourlyRequests = new Map(); // userId -> { count, resetTime }
         this.dailyRequests = new Map();  // userId -> { count, resetTime }
         this.burstRequests = new Map();  // userId -> { timestamps[] }
         
-        // Очистка старых записей каждые 5 минут
+        // Clean up old entries every 5 minutes
         setInterval(() => this.cleanup(), 5 * 60 * 1000);
         
         logger.debug('RateLimiter initialized', this.config);
@@ -27,31 +27,31 @@ export class RateLimiter {
 
         const now = Date.now();
         
-        // Проверка burst лимита (несколько запросов подряд)
+        // Check burst limit (multiple consecutive requests)
         if (!this.checkBurstLimit(userId, now)) {
             logger.warn(`User ${userId} exceeded burst limit`);
             return false;
         }
         
-        // Проверка часового лимита
+        // Check hourly limit
         if (!this.checkHourlyLimit(userId, now)) {
             logger.warn(`User ${userId} exceeded hourly limit`);
             return false;
         }
         
-        // Проверка дневного лимита
+        // Check daily limit
         if (!this.checkDailyLimit(userId, now)) {
             logger.warn(`User ${userId} exceeded daily limit`);
             return false;
         }
         
-        // Если все проверки пройдены, записываем запрос
+        // If all checks pass, record the request
         this.recordRequest(userId, now);
         return true;
     }
 
     checkBurstLimit(userId, now) {
-        const burstWindow = 60 * 1000; // 1 минута
+        const burstWindow = 60 * 1000; // 1 minute
         const maxBurst = this.config.burst_limit;
         
         if (!this.burstRequests.has(userId)) {
@@ -60,7 +60,7 @@ export class RateLimiter {
         
         const userBurst = this.burstRequests.get(userId);
         
-        // Очищаем старые записи
+        // Clean up old entries
         userBurst.timestamps = userBurst.timestamps.filter(
             timestamp => now - timestamp < burstWindow
         );
@@ -80,7 +80,7 @@ export class RateLimiter {
         
         const userHourly = this.hourlyRequests.get(userId);
         
-        // Сброс счетчика если прошел час
+        // Reset counter if an hour has passed
         if (now > userHourly.resetTime) {
             userHourly.count = 0;
             userHourly.resetTime = now + hourInMs;
@@ -101,7 +101,7 @@ export class RateLimiter {
         
         const userDaily = this.dailyRequests.get(userId);
         
-        // Сброс счетчика если прошел день
+        // Reset counter if a day has passed
         if (now > userDaily.resetTime) {
             userDaily.count = 0;
             userDaily.resetTime = now + dayInMs;
@@ -111,18 +111,18 @@ export class RateLimiter {
     }
 
     recordRequest(userId, now) {
-        // Записываем в burst
+        // Record in burst
         if (!this.burstRequests.has(userId)) {
             this.burstRequests.set(userId, { timestamps: [] });
         }
         this.burstRequests.get(userId).timestamps.push(now);
         
-        // Увеличиваем часовой счетчик
+        // Increment hourly counter
         if (this.hourlyRequests.has(userId)) {
             this.hourlyRequests.get(userId).count++;
         }
         
-        // Увеличиваем дневной счетчик
+        // Increment daily counter
         if (this.dailyRequests.has(userId)) {
             this.dailyRequests.get(userId).count++;
         }
@@ -154,7 +154,7 @@ export class RateLimiter {
     cleanup() {
         const now = Date.now();
         
-        // Очистка просроченных записей
+        // Clean up expired entries
         for (const [userId, data] of this.hourlyRequests.entries()) {
             if (now > data.resetTime) {
                 this.hourlyRequests.delete(userId);
@@ -167,7 +167,7 @@ export class RateLimiter {
             }
         }
         
-        // Очистка старых burst записей
+        // Clean up old burst entries
         for (const [userId, data] of this.burstRequests.entries()) {
             data.timestamps = data.timestamps.filter(
                 timestamp => now - timestamp < 60 * 1000
@@ -185,11 +185,11 @@ export class RateLimiter {
         const stats = this.getUserStats(userId);
         
         if (stats.hourly.used >= stats.hourly.limit) {
-            return Math.ceil(stats.hourly.resetIn / 1000); // секунды до сброса
+            return Math.ceil(stats.hourly.resetIn / 1000); // seconds until reset
         }
         
         if (stats.daily.used >= stats.daily.limit) {
-            return Math.ceil(stats.daily.resetIn / 1000); // секунды до сброса
+            return Math.ceil(stats.daily.resetIn / 1000); // seconds until reset
         }
         
         return 0;

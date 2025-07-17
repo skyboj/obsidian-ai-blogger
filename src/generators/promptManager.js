@@ -72,19 +72,19 @@ export class PromptManager {
             }
         }
 
-        // Проверка переменных
+        // Check переменных
         if (template.variables && !Array.isArray(template.variables)) {
             throw new Error(`Template ${templateName}: variables must be an array`);
         }
 
-        // Проверка frontmatter_template
+        // Check frontmatter_template
         if (template.frontmatter_template && typeof template.frontmatter_template !== 'object') {
             throw new Error(`Template ${templateName}: frontmatter_template must be an object`);
         }
     }
 
     /**
-     * Получение шаблона по имени
+     * Getting шаблона по имени
      */
     getTemplate(templateName) {
         const template = this.templates.get(templateName);
@@ -97,7 +97,7 @@ export class PromptManager {
     }
 
     /**
-     * Получение списка доступных шаблонов
+     * Getting списка доступных шаблонов
      */
     getAvailableTemplates() {
         return Array.from(this.templates.keys()).map(name => {
@@ -113,7 +113,7 @@ export class PromptManager {
     }
 
     /**
-     * Создание промпта из шаблона с подстановкой переменных
+     * Creating промпта из шаблона с подстановкой переменных
      */
     buildPrompt(templateName, variables = {}) {
         const template = this.getTemplate(templateName);
@@ -177,7 +177,7 @@ export class PromptManager {
     }
 
     /**
-     * Создание frontmatter из шаблона
+     * Creating frontmatter из шаблона
      */
     buildFrontmatter(templateName, variables = {}, additionalData = {}) {
         const template = this.getTemplate(templateName);
@@ -211,10 +211,10 @@ export class PromptManager {
             }
             return result;
         } else if (Array.isArray(obj)) {
-            // Обработка массива
+            // Processing массива
             return obj.map(item => this.substituteVariablesInObject(item, variables));
         } else if (obj && typeof obj === 'object') {
-            // Обработка объекта
+            // Processing объекта
             const result = {};
             for (const [key, value] of Object.entries(obj)) {
                 result[key] = this.substituteVariablesInObject(value, variables);
@@ -226,7 +226,7 @@ export class PromptManager {
     }
 
     /**
-     * Получение ключевых слов для поиска изображений
+     * Getting ключевых слов для поиска изображений
      */
     getImageKeywords(templateName, variables = {}) {
         const template = this.getTemplate(templateName);
@@ -244,7 +244,7 @@ export class PromptManager {
     }
 
     /**
-     * Получение метаданных шаблона
+     * Getting метаданных шаблона
      */
     getTemplateMetadata(templateName) {
         const template = this.getTemplate(templateName);

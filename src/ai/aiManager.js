@@ -1,9 +1,8 @@
 import { OpenAIProvider } from './openaiProvider.js';
-import { AnthropicProvider } from './anthropicProvider.js';
 import { logger } from '../utils/logger.js';
 
 /**
- * Менеджер AI провайдеров
+ * AI Providers Manager
  */
 export class AIManager {
     constructor(config) {
@@ -15,7 +14,7 @@ export class AIManager {
     }
 
     /**
-     * Инициализация всех доступных провайдеров
+     * Initialize all available providers
      */
     initializeProviders() {
         const providers = this.config.providers || {};
@@ -34,19 +33,7 @@ export class AIManager {
             }
         }
 
-        // Anthropic Provider
-        if (providers.anthropic && process.env.ANTHROPIC_API_KEY) {
-            try {
-                const anthropicProvider = new AnthropicProvider({
-                    apiKey: process.env.ANTHROPIC_API_KEY,
-                    ...providers.anthropic
-                });
-                this.providers.set('anthropic', anthropicProvider);
-                logger.info('✅ Anthropic provider initialized');
-            } catch (error) {
-                logger.error('❌ Failed to initialize Anthropic provider:', error);
-            }
-        }
+
 
         // TODO: Добавить другие провайдеры
         // - Google (Gemini)
@@ -60,7 +47,7 @@ export class AIManager {
     }
 
     /**
-     * Получение провайдера по имени
+     * Getting провайдера по имени
      */
     getProvider(providerName = null) {
         const name = providerName || this.defaultProvider;
@@ -129,14 +116,14 @@ export class AIManager {
     }
 
     /**
-     * Получение списка доступных провайдеров
+     * Getting списка доступных провайдеров
      */
     getAvailableProviders() {
         return Array.from(this.providers.keys());
     }
 
     /**
-     * Проверка доступности всех провайдеров
+     * Check доступности всех провайдеров
      */
     async checkProvidersHealth() {
         const healthChecks = [];
@@ -168,7 +155,7 @@ export class AIManager {
     }
 
     /**
-     * Получение статистики использования
+     * Getting статистики использования
      */
     getUsageStats() {
         // TODO: Реализовать трекинг использования
@@ -206,7 +193,7 @@ export class AIManager {
     }
 
     /**
-     * Получение лучшего провайдера для задачи
+     * Getting лучшего провайдера для задачи
      */
     async getBestProvider(prompt, requirements = {}) {
         const availableProviders = this.getAvailableProviders();

@@ -60,20 +60,8 @@ async function findMarkdownFiles(dir) {
 }
 
 function shouldPublishPost(frontmatter) {
-    // Handle different variations of the publish field
-    const publishField = frontmatter.publish ?? frontmatter.published ?? frontmatter.draft;
-    
-    if (publishField === undefined) {
-        return false; // If no publish field is found, don't publish
-    }
-
-    // Handle the case where draft: true means don't publish
-    if (frontmatter.hasOwnProperty('draft')) {
-        return !frontmatter.draft;
-    }
-
-    // Convert to boolean to handle strings like 'true', '1', etc.
-    return Boolean(publishField);
+    // A post should be published if its frontmatter contains `publish: true`.
+    return frontmatter.publish === true;
 }
 
 async function processMarkdownFile(filePath) {

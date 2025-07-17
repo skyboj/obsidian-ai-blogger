@@ -1,92 +1,91 @@
-# 🤖 Obsidian Content Generator
+# 🤖 QLOGA AI Content Generator
 
-AI-powered content generator для автоматического создания статей через Telegram бота.
+AI-powered content generator for automatic article creation via Telegram bot integration.
 
-## 🎯 Описание
+## 🎯 Overview
 
-Этот проект создан как дополнение к [Obsidian Blogger](../obsidian-blogger) и позволяет генерировать статьи с помощью AI через Telegram бота. Генерируемые статьи автоматически сохраняются в нужном формате и могут быть опубликованы в блоге.
+This project serves as a content generation system for the QLOGA company blog, allowing automated article creation through AI via Telegram bot interface. Generated articles are automatically saved in the proper format and can be published to the blog.
 
-## 🏗️ Архитектура
+## 🏗️ Architecture
 
 ```
-content-generator/
+qloga-blog/
 ├── src/
 │   ├── bot/              # Telegram bot handlers
-│   ├── ai/               # AI providers (OpenAI, Anthropic, etc.)
+│   ├── ai/               # AI providers (OpenAI)
 │   ├── generators/       # Content generators
 │   ├── media/            # Image providers (Unsplash, etc.)
 │   └── utils/            # Utilities
 ├── config/               # Configuration files
 ├── prompts/              # Template system
-├── output/               # Generated content
-└── drafts/               # Draft management
+├── Blog/                 # Generated content output
+└── public/               # Static assets
 ```
 
-## ⚡ Быстрый старт
+## ⚡ Quick Start
 
-### 1. Установка зависимостей
+### 1. Install Dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Настройка переменных окружения
+### 2. Setup Environment Variables
 
 ```bash
 cp env.example .env
 ```
 
-Заполните `.env` файл своими ключами:
+Fill in your `.env` file with API keys:
 
 ```env
-# Обязательные
+# Required
 TELEGRAM_BOT_TOKEN=your_bot_token
 ADMIN_TELEGRAM_ID=your_telegram_id
 OPENAI_API_KEY=your_openai_key
 
-# Опциональные
+# Optional
 UNSPLASH_ACCESS_KEY=your_unsplash_key
-BLOG_FOLDER_PATH=../obsidian-blogger/Blog
 ```
 
-### 3. Запуск бота
+### 3. Start the Bot
 
 ```bash
-# Продакшн
-npm start
+# Production
+npm run content:bot
 
-# Разработка (с автоперезагрузкой)
+# Development (with auto-reload)
 npm run dev
 ```
 
-## 🤖 Команды бота
+## 🤖 Bot Commands
 
-- `/start` - Начать работу с ботом
-- `/generate <тема>` - Генерировать новую статью
-- `/templates` - Список доступных шаблонов
-- `/drafts` - Управление черновиками
-- `/settings` - Настройки генерации
-- `/status` - Статус системы и AI провайдеров
-- `/sync` - Синхронизация новых файлов с блогом
-- `/publish <файл.md>` - Публикация черновика в блог
-- `/help` - Помощь и инструкции
+- `/start` - Initialize bot interaction
+- `/generate <topic>` - Generate new article
+- `/templates` - List available templates
+- `/drafts` - Manage drafts
+- `/settings` - Generation settings
+- `/status` - System and AI provider status
+- `/sync` - Sync new files with blog
+- `/publish <file.md>` - Publish draft to blog
+- `/help` - Help and instructions
 
-## 📝 Система шаблонов
+## 📝 Template System
 
-Шаблоны находятся в папке `prompts/`. Пример шаблона:
+Templates are located in the `prompts/` folder. Example template:
 
 ```yaml
-name: "Техническая статья"
-description: "Для технических руководств и туториалов"
+name: "Technical Article"
+description: "For technical guides and tutorials"
 variables:
   - name: "topic"
     required: true
   - name: "difficulty"
-    default: "средний"
+    default: "intermediate"
 
 prompt: |
-  Напиши техническую статью на тему: {topic}
-  Уровень сложности: {difficulty}
+  Write a technical article on the topic: {topic}
+  Difficulty level: {difficulty}
   
 frontmatter_template:
   title: "{topic}"
@@ -94,129 +93,123 @@ frontmatter_template:
   difficulty: "{difficulty}"
 ```
 
-## 🔗 Интеграция с блогом
+## 🔗 Blog Integration
 
-Генератор полностью интегрирован с основным блоговым приложением:
+The generator is fully integrated with the main QLOGA blog application:
 
-### Автоматическая синхронизация
-- Сгенерированные статьи автоматически копируются в папку блога
-- Поддержка черновиков и готовых к публикации статей
-- Проверка доступности и прав записи
+### Automatic Synchronization
+- Generated articles are automatically saved to the blog folder
+- Support for drafts and publish-ready articles
+- Availability and write permissions checking
 
-### Команды интеграции
+### Integration Commands
 ```bash
-# Синхронизация новых файлов
+# Sync new files
 /sync
 
-# Публикация черновика
+# Publish draft
 /publish article-name.md
 
-# Статистика интеграции
+# Integration statistics
 /status
 ```
 
-### Настройка
-```bash
-# Переменная окружения
-BLOG_FOLDER_PATH="../obsidian-blogger/Blog"
-```
+### Configuration
+The system automatically saves generated content to `Blog/` which syncs with the Astro blog in `src/content/blog/`.
 
-## 🔄 Workflow генерации
+## 🔄 Generation Workflow
 
-1. **Получение темы** от пользователя через бота
-2. **Подготовка промпта** на основе выбранного шаблона
-3. **Генерация контента** через AI (OpenAI/Anthropic)
-4. **Поиск изображения** через Unsplash API
-5. **Создание Markdown файла** с правильным frontmatter
-6. **Автосинхронизация** с папкой блога
-7. **Готовность** к публикации через sync-obsidian.js
+1. **Topic Input** from user via bot
+2. **Prompt Preparation** based on selected template
+3. **Content Generation** via AI (OpenAI/Anthropic)
+4. **Image Search** via Unsplash API
+5. **Markdown File Creation** with proper frontmatter
+6. **Auto-sync** with blog folder
+7. **Ready** for publication via Astro build
 
-## 🔧 Конфигурация
+## 🔧 Configuration
 
-### AI Провайдеры
+### AI Providers
 
-Поддерживаемые провайдеры:
+Supported providers:
 - **OpenAI** (GPT-4, GPT-3.5)
-- **Anthropic** (Claude)
-- **Google** (Gemini)
 
 ### Rate Limiting
 
-- 10 запросов в час на пользователя
-- 50 запросов в день на пользователя
-- Burst limit: 3 запроса подряд
+- 10 requests per hour per user
+- 50 requests per day per user
+- Burst limit: 3 consecutive requests
 
-### Настройки контента
+### Content Settings
 
-- Минимум: 800 слов
-- Максимум: 3000 слов
-- Автоматическая проверка качества
-- Поддержка изображений
+- Minimum: 800 words
+- Maximum: 3000 words
+- Automatic quality checking
+- Image support via Unsplash
 
-## 🚀 Интеграция с Obsidian Blogger
+## 🚀 Blog Integration
 
-Генератор может работать в двух режимах:
+The generator works with the Astro-based QLOGA blog:
 
-1. **Manual mode**: Сохранение в `output/` для ручного переноса
-2. **Auto mode**: Прямое сохранение в `../obsidian-blogger/Blog/`
+1. **Generation**: AI creates content in `Blog/`
+2. **Sync**: Manual or automatic sync to `src/content/blog/`
+3. **Build**: Astro processes and builds the blog
+4. **Deploy**: Static site deployment
 
-## 📊 Мониторинг и логи
+## 📊 Monitoring & Logs
 
-- Цветные логи с временными метками
-- Статистика использования
-- Мониторинг ошибок
-- Rate limiting метрики
+- Colored logs with timestamps
+- Usage statistics
+- Error monitoring
+- Rate limiting metrics
 
-## 🔒 Безопасность
+## 🔒 Security
 
-- Авторизация по Telegram ID
-- Rate limiting для предотвращения спама
-- Валидация входных данных
-- Безопасная обработка ошибок
+- Telegram ID-based authorization
+- Rate limiting for spam prevention
+- Input data validation
+- Secure error handling
 
-## 🛠️ Разработка
+## 🛠️ Development
 
 ```bash
-# Разработка с автоперезагрузкой
+# Development with auto-reload
 npm run dev
 
-# Запуск только бота
-npm run bot:dev
+# Run bot only
+npm run content:bot
 
-# Генерация через CLI
-npm run generate "Тема статьи"
+# Generate via CLI
+npm run content:generate
 ```
 
-## 🧪 Тестирование
+## 🧪 Testing
 
-### CLI тесты
+### CLI Tests
 
 ```bash
-# Тест генерации статьи
-node src/cli.js "Искусственный интеллект в образовании"
+# Test article generation
+node src/cli.js "Artificial Intelligence in Education"
 
-# Тест AI провайдеров
-node src/testAI.js
+# Test AI providers
+node src/testFull.js status
 
-# Тест поиска изображений
+# Test image search
 node src/testImage.js "artificial intelligence"
 
-# Полное тестирование системы
-node src/testFull.js status           # Статус всех компонентов
-node src/testFull.js sync             # Тест синхронизации
-node src/testFull.js blog-stats       # Статистика блога
-node src/testFull.js full "React 2024" # Полный workflow
+# Full system test
+node src/testFull.js full "React 2024"
 ```
 
-### Telegram команды тестирования
+### Telegram Test Commands
 
 ```bash
-/status      # Проверка всех сервисов
-/sync        # Синхронизация файлов
-/generate "Тестовая тема"  # Полная генерация
+/status      # Check all services
+/sync        # Sync files
+/generate "Test topic"  # Full generation
 ```
 
-## 📦 Зависимости
+## 📦 Dependencies
 
 - `node-telegram-bot-api` - Telegram Bot API
 - `openai` - OpenAI API client
@@ -224,25 +217,24 @@ node src/testFull.js full "React 2024" # Полный workflow
 - `axios` - HTTP client
 - `gray-matter` - Frontmatter parser
 - `dotenv` - Environment variables
+- `astro` - Static site generator
+- `tailwindcss` - CSS framework
 
-## 🤝 Связь с основным проектом
+## 🌐 Project Workflow
 
 ```
-content-generator/output/  →  obsidian-blogger/Blog/
-                          ↓
-                    sync-obsidian.js
-                          ↓
-              obsidian-blogger/src/content/blog/
-                          ↓
-                    Astro Build
-                          ↓
-                   Published Blog
+AI Generation  →  Blog/ folder  →  src/content/blog/  →  Astro Build  →  Published Blog
 ```
 
-## 📄 Лицензия
+## 📄 License
 
 MIT
 
-## 🔗 Связанные проекты
+## 🏢 QLOGA Company
 
-- [Obsidian Blogger](../obsidian-blogger) - Основной блоговый движок
+This project is part of the QLOGA technology ecosystem. Visit [qloga.com](https://qloga.com) for more information about our company and services.
+
+## 🔗 Social Media
+
+- Instagram: [@qloga_uk](https://instagram.com/qloga_uk)
+- YouTube: [@QLOGA](https://www.youtube.com/@QLOGA)

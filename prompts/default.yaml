@@ -1,60 +1,60 @@
-name: "Универсальная статья"
-description: "Базовый шаблон для создания статей на любую тему"
+name: "Universal Article"
+description: "Base template for creating articles on any topic"
 version: "1.0"
-language: "ru"
+language: "en"
 
 variables:
   - name: "topic"
-    description: "Тема статьи"
+    description: "Article topic"
     required: true
   - name: "target_audience"
-    description: "Целевая аудитория"
-    default: "широкая аудитория"
+    description: "Target audience"
+    default: "general audience"
   - name: "style"
-    description: "Стиль написания"
-    default: "информативный и доступный"
+    description: "Writing style"
+    default: "informative and accessible"
   - name: "word_count"
-    description: "Примерное количество слов"
+    description: "Approximate word count"
     default: "1500-2000"
 
 prompt: |
-  Напиши подробную и интересную статью на тему: {topic}
+  Write a comprehensive and engaging article on the topic: {topic}
   
-  Требования к статье:
-  - Целевая аудитория: {target_audience}
-  - Стиль: {style}
-  - Объем: {word_count} слов
-  - Язык: русский
+  Article requirements:
+  - Target audience: {target_audience}
+  - Style: {style}
+  - Length: {word_count} words
+  - Language: English
   
-  Структура статьи:
-  1. Введение (зацепка, постановка проблемы)
-  2. Основная часть (раскрытие темы с примерами)
-  3. Практические советы или выводы
-  4. Заключение
+  Article structure:
+  1. Introduction (hook, problem statement)
+  2. Main body (topic development with examples)
+  3. Practical advice or conclusions
+  4. Conclusion
   
-  Критерии качества:
-  - Информативность и полезность
-  - Легкость восприятия
-  - Логическая структура
-  - Практическая ценность
-  - Интересные факты или примеры
+  Quality criteria:
+  - Informative and useful content
+  - Easy to understand
+  - Logical structure
+  - Practical value
+  - Interesting facts or examples
   
-  Не используй заголовок в самом тексте - он будет добавлен отдельно.
-  Пиши естественно, избегай штампов и слишком формального стиля.
-  Добавь конкретные примеры и полезные детали.
+  Do not include the title in the text itself - it will be added separately.
+  Write naturally, avoid clichés and overly formal style.
+  Add specific examples and useful details.
 
 frontmatter_template:
   title: "{topic}"
-  description: "Подробная статья о {topic}"
+  description: "Comprehensive article about {topic}"
   publish: false
   created_date: "{current_date}"
   tags: 
-    - "статья"
+    - "article"
   featured_image: ""
   slug: ""
 
 image_keywords:
   - "{topic}"
-  - "концепция"
-  - "технология"
-  - "современность" 
+  - "concept"
+  - "technology"
+  - "modern" 

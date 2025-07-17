@@ -15,7 +15,7 @@ export async function loadConfig() {
         const configContent = await readFile(configPath, 'utf8');
         cachedConfig = yaml.parse(configContent);
         
-        // Валидация конфигурации
+        // Configuration validation
         validateConfig(cachedConfig);
         
         logger.debug('Configuration loaded successfully');
@@ -42,7 +42,7 @@ function validateConfig(config) {
         }
     }
     
-    // Проверка провайдеров AI
+    // Check AI providers
     const defaultProvider = config.ai.default_provider;
     if (!config.ai.providers[defaultProvider]) {
         throw new Error(`Default AI provider '${defaultProvider}' not found in providers configuration`);

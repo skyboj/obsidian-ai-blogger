@@ -41,7 +41,7 @@ const { title, description, date, slug } = Astro.props;
     .blog-card {
         position: relative;
         border-radius: 20px;
-        background: rgb(var(--card-bg));
+        background: #F1F8F4;
         box-shadow: 
             0 4px 6px -1px rgba(0, 0, 0, 0.05),
             0 2px 4px -1px rgba(0, 0, 0, 0.03);
@@ -49,11 +49,7 @@ const { title, description, date, slug } = Astro.props;
         overflow: hidden;
     }
 
-    @media (prefers-color-scheme: dark) {
-        .blog-card {
-            background: rgb(var(--card-bg));
-        }
-    }
+    /* Dark theme styles removed - only light theme */
 
     .blog-card::after {
         content: "";

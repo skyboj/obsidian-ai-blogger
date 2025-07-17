@@ -18,7 +18,7 @@ export class BaseImageProvider {
     }
 
     /**
-     * Проверка доступности провайдера
+     * Check доступности провайдера
      * @returns {Promise<boolean>} Доступен ли провайдер
      */
     async isAvailable() {
@@ -30,7 +30,7 @@ export class BaseImageProvider {
     }
 
     /**
-     * Проверка наличия API ключа
+     * Check наличия API ключа
      * @returns {boolean}
      */
     hasApiKey() {
@@ -65,7 +65,7 @@ export class BaseImageProvider {
             return false;
         }
 
-        // Проверка лимитов
+        // Check лимитов
         const limit = options.limit || 10;
         if (limit < 1 || limit > 50) {
             return false;
@@ -117,7 +117,7 @@ export class BaseImageProvider {
     }
 
     /**
-     * Обработка ошибок провайдера
+     * Processing ошибок провайдера
      * @param {Error} error 
      * @returns {Object}
      */

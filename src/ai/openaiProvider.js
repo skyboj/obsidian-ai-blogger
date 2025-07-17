@@ -98,7 +98,7 @@ export class OpenAIProvider extends BaseAIProvider {
     }
 
     /**
-     * Получение списка доступных моделей
+     * Getting списка доступных моделей
      */
     async getAvailableModels() {
         try {
@@ -173,7 +173,7 @@ export class OpenAIProvider extends BaseAIProvider {
             return {
                 ...baseError,
                 error: 'MODEL_NOT_FOUND',
-                message: `Модель ${this.model} не найдена`
+                message: `Модель ${this.model} not foundа`
             };
         }
 

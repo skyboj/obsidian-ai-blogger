@@ -13,43 +13,22 @@ export async function startBot() {
         config = await loadConfig();
         logger.info('📋 Configuration loaded');
         
-        // Создание экземпляра бота
+        // Creating экземпляра бота
         bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, {
             polling: config.telegram.polling
         });
         
-        // Инициализация компонентов
+        // Initialization компонентов
         const rateLimiter = new RateLimiter(config.rate_limiting);
-        const commandHandler = new CommandHandler(config);
+        const commandHandler = new CommandHandler(config, rateLimiter);
         
-        // Обработка команд
-        bot.on('message', async (msg) => {
-            try {
-                const userId = msg.from.id;
-                const chatId = msg.chat.id;
-                
-                // Проверка доступа
-                if (!isAuthorizedUser(userId)) {
-                    await bot.sendMessage(chatId, '❌ У вас нет доступа к этому боту.');
-                    logger.warn(`Unauthorized access attempt from user ${userId}`);
-                    return;
-                }
-                
-                // Проверка rate limiting
-                if (!rateLimiter.checkLimit(userId)) {
-                    await bot.sendMessage(chatId, '⏰ Превышен лимит запросов. Попробуйте позже.');
-                    return;
-                }
-                
-                // Обработка сообщения
-                await commandHandler.handleMessage(bot, msg);
-                
-            } catch (error) {
-                logger.error('Error handling message:', error);
-                await bot.sendMessage(msg.chat.id, '💥 Произошла ошибка при обработке сообщения.');
-            }
-        });
+        const messageHandler = async (msg) => {
+            await commandHandler.handleMessage(bot, msg);
+        };
         
+        bot.on('message', messageHandler);
+        bot.on('callback_query', messageHandler);
+
         // Установка команд в меню бота
         await setMenuCommands();
         

@@ -18,7 +18,7 @@ export class BaseAIProvider {
     }
 
     /**
-     * Проверка доступности провайдера
+     * Check доступности провайдера
      * @returns {Promise<boolean>} Доступен ли провайдер
      */
     async isAvailable() {
@@ -31,7 +31,7 @@ export class BaseAIProvider {
     }
 
     /**
-     * Проверка наличия API ключа
+     * Check наличия API ключа
      * @returns {boolean}
      */
     hasApiKey() {
@@ -62,7 +62,7 @@ export class BaseAIProvider {
             return false;
         }
         
-        // Проверка на максимальную длину
+        // Check на максимальную длину
         const maxTokens = this.config.max_tokens || 4000;
         const estimatedTokens = this.estimateTokens(prompt);
         
@@ -70,7 +70,7 @@ export class BaseAIProvider {
     }
 
     /**
-     * Обработка ошибок провайдера
+     * Processing ошибок провайдера
      * @param {Error} error 
      * @returns {Object}
      */

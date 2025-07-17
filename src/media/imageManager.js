@@ -14,7 +14,7 @@ export class ImageManager {
     }
 
     /**
-     * Инициализация всех доступных провайдеров
+     * Initialization всех доступных провайдеров
      */
     initializeProviders() {
         const providers = this.config || {};
@@ -50,7 +50,7 @@ export class ImageManager {
     }
 
     /**
-     * Получение провайдера по имени
+     * Getting провайдера по имени
      */
     getProvider(providerName = null) {
         const name = providerName || this.defaultProvider;
@@ -119,7 +119,7 @@ export class ImageManager {
     }
 
     /**
-     * Получение лучшего изображения для темы
+     * Getting лучшего изображения для темы
      */
     async getBestImageForTopic(topic, options = {}) {
         try {
@@ -200,7 +200,7 @@ export class ImageManager {
     }
 
     /**
-     * Получение случайного изображения
+     * Getting случайного изображения
      */
     async getRandomImage(options = {}) {
         try {
@@ -226,14 +226,14 @@ export class ImageManager {
     }
 
     /**
-     * Получение списка доступных провайдеров
+     * Getting списка доступных провайдеров
      */
     getAvailableProviders() {
         return Array.from(this.providers.keys());
     }
 
     /**
-     * Проверка доступности всех провайдеров
+     * Check доступности всех провайдеров
      */
     async checkProvidersHealth() {
         const healthChecks = [];
@@ -265,7 +265,7 @@ export class ImageManager {
     }
 
     /**
-     * Получение статистики использования
+     * Getting статистики использования
      */
     getUsageStats() {
         // TODO: Реализовать трекинг использования
@@ -309,7 +309,7 @@ export class ImageManager {
     }
 
     /**
-     * Создание Markdown для изображения
+     * Creating Markdown для изображения
      */
     createImageMarkdown(image, options = {}) {
         const formatted = this.formatImageForArticle(image, options);

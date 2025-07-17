@@ -12,14 +12,14 @@ async function main() {
         console.log(`
 🤖 Content Generator CLI
 
-Использование:
-  npm run generate "Тема статьи"
-  node src/cli.js "Искусственный интеллект в 2024"
+Usage:
+  npm run content:generate "Article topic"
+  node src/cli.js "Artificial Intelligence in 2024"
 
-Опции:
-  --provider <name>    Выбор AI провайдера (openai, anthropic)
-  --model <name>       Модель для генерации
-  --help              Показать эту справку
+Options:
+  --provider <name>    Choose AI provider (openai)
+  --model <name>       Model for generation
+  --help               Show this help
         `);
         process.exit(0);
     }
@@ -50,7 +50,7 @@ async function main() {
             logger.info(`🔧 Используемый провайдер: ${provider}`);
         }
 
-        // Проверка доступности провайдеров
+        // Check доступности провайдеров
         const healthChecks = await aiManager.checkProvidersHealth();
         logger.info('🏥 Статус провайдеров:');
         healthChecks.forEach(check => {
@@ -58,7 +58,7 @@ async function main() {
             logger.info(`  ${status} ${check.name}: ${check.status} (${check.responseTime}ms)`);
         });
 
-        // Создание простого промпта
+        // Creating простого промпта
         const prompt = `Напиши подробную и интересную статью на тему: ${topic}
 
 Требования:
@@ -129,23 +129,21 @@ function showHelp() {
 ПРИМЕРЫ:
   npm run generate "Искусственный интеллект в медицине"
   node src/cli.js "Веб-разработка в 2024" --provider openai
-  node src/cli.js "Здоровое питание" --provider anthropic --model claude-3-sonnet
+  node src/cli.js "Здоровое питание" --provider openai --model gpt-4o-mini
 
 ОПЦИИ:
   --provider <name>    Выбор AI провайдера
-                       Доступные: openai, anthropic
+                       Доступные: openai
                        По умолчанию: из конфигурации
 
   --model <name>       Модель для генерации
                        OpenAI: gpt-4o-mini, gpt-4o, gpt-3.5-turbo
-                       Anthropic: claude-3-haiku, claude-3-sonnet, claude-3-opus
 
   --help              Показать эту справку
 
 ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ:
   Скопируйте env.example в .env и заполните:
   • OPENAI_API_KEY      - Ключ OpenAI API
-  • ANTHROPIC_API_KEY   - Ключ Anthropic API
 
 КОНФИГУРАЦИЯ:
   Настройки в config/bot.yaml, секция ai:

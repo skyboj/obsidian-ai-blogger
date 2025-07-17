@@ -4,11 +4,13 @@
 
 export { BaseAIProvider } from './baseProvider.js';
 export { OpenAIProvider } from './openaiProvider.js';
-export { AnthropicProvider } from './anthropicProvider.js';
 export { AIManager } from './aiManager.js';
 
+// Импортируем AIManager для локального использования
+import { AIManager } from './aiManager.js';
+
 /**
- * Создание экземпляра AIManager с конфигурацией
+ * Creating экземпляра AIManager с конфигурацией
  */
 export function createAIManager(config) {
     return new AIManager(config);
