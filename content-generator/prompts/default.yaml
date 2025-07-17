@@ -1,0 +1,53 @@
+name: "Universal Article"
+description: "Base template for creating articles on any topic"
+version: "1.0"
+language: "en-GB"
+
+variables:
+  - name: "topic"
+    description: "Article topic"
+    required: true
+  - name: "target_audience"
+    description: "Target audience"
+    default: "general audience"
+  - name: "style"
+    description: "Writing style"
+    default: "informative and accessible"
+  - name: "word_count"
+    description: "Approximate word count"
+    default: "1500-2000"
+
+prompt: |
+  Write a comprehensive and engaging article on the topic: {topic}
+  
+  Article requirements:
+  - Target audience: {target_audience}
+  - Style: {style}
+  - Length: {word_count} words
+  - Language: British English
+  - Use British spelling (colour, realise, centre, etc.)
+  - Professional tone with proper British grammar
+  
+  Article structure:
+  1. Introduction (hook, problem statement)
+  2. Main body (3-4 key points with evidence and examples)
+  3. Practical applications or implications
+  4. Conclusion with key takeaways
+  
+  Writing guidelines:
+  - Use clear, concise sentences
+  - Include relevant examples and case studies
+  - Maintain reader engagement throughout
+  - Use proper British punctuation and terminology
+  - Ensure logical flow between sections
+  
+  Please write the article in proper British English with appropriate vocabulary and style.
+
+frontmatter_template:
+  title: "{topic}"
+  description: "A comprehensive guide to {topic}"
+  tags: ["guide", "information"]
+  language: "en-GB"
+  created_date: "{current_date}"
+  word_count: "{estimated_words}"
+  reading_time: "{reading_time}" 
