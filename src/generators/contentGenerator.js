@@ -153,19 +153,19 @@ export class ContentGenerator {
     async generateDescription(content, maxLength = 160) {
         try {
             const descriptionPrompt = `
-Создай краткое и привлекательное описание для статьи (не более ${maxLength} символов).
+Create a brief and engaging description for the article (no more than ${maxLength} characters).
 
-Контент статьи:
+Article content:
 ${content.substring(0, 1000)}...
 
-Требования к описанию:
-- Максимум ${maxLength} символов
-- Привлекательное и информативное
-- Без кавычек
-- На русском языке
-- Призывает к прочтению
+Description requirements:
+- Maximum ${maxLength} characters
+- Engaging and informative
+- No quotes
+- In English
+- Encourages reading
 
-Верни только описание без дополнительного текста.`;
+Return only the description without additional text.`;
 
             const result = await this.aiManager.generate(descriptionPrompt, {
                 maxTokens: 100,
@@ -197,19 +197,19 @@ ${content.substring(0, 1000)}...
     async generateTags(topic, content, maxTags = 5) {
         try {
             const tagsPrompt = `
-Создай ${maxTags} релевантных тегов для статьи на тему "${topic}".
+Create ${maxTags} relevant tags for an article on the topic "${topic}".
 
-Начало статьи:
+Beginning of the article:
 ${content.substring(0, 500)}...
 
-Требования к тегам:
-- Максимум ${maxTags} тегов
-- На русском языке
-- Одно-два слова каждый
-- Релевантные теме и содержанию
-- В нижнем регистре
+Tag requirements:
+- Maximum ${maxTags} tags
+- In English
+- One or two words each
+- Relevant to the topic and content
+- In lowercase
 
-Верни теги через запятую без дополнительного текста.`;
+Return the tags separated by commas without additional text.`;
 
             const result = await this.aiManager.generate(tagsPrompt, {
                 maxTokens: 50,
@@ -236,6 +236,42 @@ ${content.substring(0, 500)}...
     }
 
     /**
+     * Generates a new, engaging title for the article
+     */
+    async generateTitle(originalTopic, content) {
+        try {
+            const titlePrompt = `
+Your first task is to translate the following topic from its original language into English.
+Original topic: "${originalTopic}"
+
+Your second task is to take the English translation and rephrase it into a new, creative, and SEO-friendly title for a blog post.
+
+The new title must meet these requirements:
+- Be in English.
+- Be catchy, engaging, and optimized for search engines.
+- Accurately reflect the article's content, which starts with: ${content.substring(0, 1000)}...
+- Do not use quotes in the title.
+
+Return ONLY the final, rephrased English title. Do not include the initial translation or any other extra text.
+            `;
+
+            const result = await this.aiManager.generate(titlePrompt, {
+                maxTokens: 60,
+                temperature: 0.8
+            });
+
+            if (result.success && result.content) {
+                return result.content.trim().replace(/"/g, ''); // Remove quotes
+            }
+
+            return originalTopic; // Fallback to original topic
+        } catch (error) {
+            logger.error('Failed to generate title:', error);
+            return originalTopic; // Fallback to original topic
+        }
+    }
+
+    /**
      * Полная генерация статьи с автоматическими метаданными
      */
     async generateCompleteArticle(topic) {
@@ -248,55 +284,45 @@ ${content.substring(0, 500)}...
         try {
             logger.info('🔍 Generating additional metadata...');
             
-            // Генерируем описание, теги и изображение
-            const [description, tags, imageResult] = await Promise.all([
+            // Generate description and tags in parallel
+            const [description, tags, newTitle] = await Promise.all([
                 this.generateDescription(result.content.text),
                 this.generateTags(result.topic, result.content.text),
-                this.findImageForTopic(result.topic)
+                this.generateTitle(result.topic, result.content.text)
             ]);
+            
+            logger.success('✨ Generated additional metadata');
 
-            // Обновляем файл с новыми метаданными
-            if (description || tags.length > 0 || (imageResult && imageResult.success)) {
-                const updatedFrontmatter = {
-                    ...result.metadata.frontmatter
-                };
+            const existingTags = result.metadata.frontmatter.tags || [];
+            const allTags = [...new Set([...existingTags, ...tags])];
 
-                if (description) {
-                    updatedFrontmatter.description = description;
+            // Update the markdown file with the new metadata
+            const updatedArticle = await this.markdownGenerator.updateDraft(
+                result.file.filename,
+                {
+                    title: newTitle,
+                    description: description,
+                    tags: allTags,
+                    publish: false // Ensure it remains a draft
                 }
-
-                if (tags.length > 0) {
-                    updatedFrontmatter.tags = [...(updatedFrontmatter.tags || []), ...tags];
-                }
-
-                if (imageResult && imageResult.success) {
-                    updatedFrontmatter.featured_image = imageResult.image.url;
-                    updatedFrontmatter.featured_image_alt = imageResult.image.title || imageResult.image.description;
-                    
-                    // Добавляем атрибуцию в метаданные
-                    if (imageResult.image.author) {
-                        updatedFrontmatter.image_author = imageResult.image.author;
-                        updatedFrontmatter.image_source = imageResult.image.source;
-                    }
-                }
-
-                const updateResult = await this.markdownGenerator.updateMarkdownFile(
-                    result.file.path,
-                    result.content.text,
-                    updatedFrontmatter
-                );
-
-                if (updateResult.success) {
-                    result.metadata.frontmatter = updatedFrontmatter;
-                    logger.success('✨ Enhanced with auto-generated metadata');
-                }
+            );
+            
+            if (!updatedArticle.success) {
+                throw new Error('Failed to update draft with new metadata.');
             }
-
-            return result;
+            
+            logger.success(`✅ Updated draft: ${updatedArticle.filename}`);
+            
+            return {
+                ...result,
+                title: newTitle, // Return the new title
+                filename: updatedArticle.filename // Return the new filename (slug might have changed)
+            };
             
         } catch (error) {
-            logger.warn('Failed to generate additional metadata:', error);
-            return result; // Возвращаем базовый результат
+            logger.error('Failed to generate complete article metadata:', error);
+            // Return the original result without metadata
+            return result;
         }
     }
 
@@ -463,7 +489,7 @@ ${content.substring(0, 500)}...
         return {
             minutes,
             words: wordCount,
-            text: minutes === 1 ? '1 минута' : `${minutes} минут`
+            text: minutes === 1 ? '1 minute' : `${minutes} minutes`
         };
     }
 

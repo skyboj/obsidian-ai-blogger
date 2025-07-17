@@ -1,4 +1,4 @@
-import { writeFile, mkdir, readFile } from 'fs/promises';
+import { writeFile, mkdir, readFile, unlink } from 'fs/promises';
 import { join, dirname, resolve } from 'path';
 import matter from 'gray-matter';
 import slugify from 'slugify';
@@ -10,6 +10,7 @@ import { logger } from '../utils/logger.js';
 export class MarkdownGenerator {
     constructor(outputDir = './output') {
         this.outputDir = resolve(process.cwd(), outputDir);
+        this.imageExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
     }
 
     /**
@@ -142,6 +143,14 @@ export class MarkdownGenerator {
                 throw error;
             }
         }
+    }
+
+    generateSlug(text) {
+        return slugify(text, {
+            lower: true,
+            strict: true,
+            remove: /[*+~.()'"!:@]/g
+        });
     }
 
     /**
@@ -305,6 +314,67 @@ export class MarkdownGenerator {
         } catch (error) {
             logger.error('Failed to create backup:', error);
             return null;
+        }
+    }
+
+    async updateDraft(filename, updates) {
+        const filePath = join(this.outputDir, 'drafts', filename);
+        try {
+            const fileContent = await readFile(filePath, 'utf-8');
+            const { data: frontmatter, content } = matter(fileContent);
+
+            const newFrontmatter = { ...frontmatter, ...updates };
+
+            // If the title is updated, we need to generate a new slug and filename
+            let newFilename = filename;
+            if (updates.title && updates.title !== frontmatter.title) {
+                newFrontmatter.slug = this.generateSlug(updates.title);
+                newFilename = `${this.generateFilename(updates.title)}.md`;
+                
+                // Update the slug in frontmatter as well
+                newFrontmatter.slug = newFilename.replace('.md', '');
+            }
+
+            const newFileContent = matter.stringify(content, newFrontmatter);
+            const newFilePath = join(this.outputDir, 'drafts', newFilename);
+
+            await writeFile(newFilePath, newFileContent, 'utf-8');
+
+            // If the filename changed, remove the old file
+            if (newFilename !== filename) {
+                await unlink(filePath);
+            }
+
+            return { success: true, filename: newFilename, path: newFilePath };
+        } catch (error) {
+            logger.error(`Failed to update draft ${filename}:`, error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async getDrafts() {
+        const draftsDir = join(this.outputDir, 'drafts');
+        try {
+            const files = await readdir(draftsDir);
+            const drafts = [];
+            for (const file of files) {
+                if (file.endsWith('.md')) {
+                    const filePath = join(draftsDir, file);
+                    const { data: frontmatter } = matter(await readFile(filePath, 'utf8'));
+                    drafts.push({
+                        filename: file,
+                        title: frontmatter.title,
+                        slug: frontmatter.slug,
+                        created_date: frontmatter.created_date,
+                        publish: frontmatter.publish,
+                        draft: frontmatter.draft
+                    });
+                }
+            }
+            return drafts;
+        } catch (error) {
+            logger.error('Failed to get drafts:', error);
+            return [];
         }
     }
 } 
