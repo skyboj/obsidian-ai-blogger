@@ -17,3 +17,7 @@
 .env*
 !/.env.example
 temp/
+
+# Telegraph tokens and cache
+telegraph_token.json
+telegraph_cache.json
