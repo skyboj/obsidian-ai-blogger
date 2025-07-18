@@ -16,3 +16,4 @@
 # Environment Variables
 .env*
 !/.env.example
+temp/

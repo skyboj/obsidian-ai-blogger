@@ -1,4 +1,4 @@
-import { writeFile, mkdir, readFile, unlink } from 'fs/promises';
+import { writeFile, mkdir, readFile, readdir, unlink } from 'fs/promises';
 import { join, dirname, resolve } from 'path';
 import matter from 'gray-matter';
 import slugify from 'slugify';
@@ -360,14 +360,15 @@ export class MarkdownGenerator {
             for (const file of files) {
                 if (file.endsWith('.md')) {
                     const filePath = join(draftsDir, file);
-                    const { data: frontmatter } = matter(await readFile(filePath, 'utf8'));
+                    const fileContent = await readFile(filePath, 'utf8');
+                    const { data: frontmatter, content } = matter(fileContent);
                     drafts.push({
                         filename: file,
                         title: frontmatter.title,
                         slug: frontmatter.slug,
                         created_date: frontmatter.created_date,
-                        publish: frontmatter.publish,
-                        draft: frontmatter.draft
+                        frontmatter: frontmatter,
+                        content: content
                     });
                 }
             }
