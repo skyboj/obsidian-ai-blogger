@@ -1,0 +1,15 @@
+[Unit]
+Description=Obsidian Blogger Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/obsidian-blogger
+ExecStart=/usr/bin/docker-compose up
+ExecStop=/usr/bin/docker-compose down
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target 

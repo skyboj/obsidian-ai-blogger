@@ -21,3 +21,9 @@ temp/
 # Telegraph tokens and cache
 telegraph_token.json
 telegraph_cache.json
+
+# Deployment files
+.env
+*.pem
+ssl/
+backups/

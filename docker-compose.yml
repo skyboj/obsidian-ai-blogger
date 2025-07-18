@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  obsidian-blogger:
+    build: .
+    container_name: obsidian-blogger-bot
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    env_file:
+      - .env
+    volumes:
+      # Монтируем папки для сохранения данных
+      - ./output:/app/output
+      - ./drafts:/app/drafts
+      - ./telegraph_token.json:/app/telegraph_token.json
+      - ./telegraph_cache.json:/app/telegraph_cache.json
+    ports:
+      - "4321:4321"
+    networks:
+      - obsidian-network
+
+  # Опционально: Nginx для проксирования
+  nginx:
+    image: nginx:alpine
+    container_name: obsidian-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - obsidian-blogger
+    networks:
+      - obsidian-network
+
+networks:
+  obsidian-network:
+    driver: bridge 

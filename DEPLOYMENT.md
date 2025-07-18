@@ -1,137 +1,306 @@
-# Deployment Guide
+# 🚀 Деплой Obsidian Blogger на Amazon
 
-This guide explains how to deploy your Obsidian Blogger site to different platforms while ensuring correct URL handling.
+## Варианты деплоя
 
-## URL Configuration
+### 1. Amazon EC2 (Рекомендуемый для Telegram бота)
 
-The site uses environment variables to handle URLs correctly across different deployment environments:
+#### Подготовка сервера
 
-- `SITE_URL`: The full URL of your site
-- `BASE_URL`: The base path where your site is served from
+1. **Создайте EC2 инстанс:**
+   - Тип: t3.micro или t3.small (достаточно для бота)
+   - OS: Ubuntu 22.04 LTS
+   - Security Group: откройте порты 22 (SSH), 80 (HTTP), 443 (HTTPS)
 
-## Deployment Scenarios
+2. **Подключитесь к серверу:**
+   ```bash
+   ssh -i your-key.pem ubuntu@your-server-ip
+   ```
 
-### 1. Local Development
+#### Автоматический деплой
 
-```env
-SITE_URL=http://localhost:4321
-BASE_URL=/
+1. **Настройте скрипт деплоя:**
+   ```bash
+   # Отредактируйте deploy.sh
+   nano deploy.sh
+   # Замените your-server-ip на IP вашего сервера
+   ```
+
+2. **Создайте .env файл:**
+   ```bash
+   cp env.example .env
+   # Заполните все необходимые переменные
+   ```
+
+3. **Запустите деплой:**
+   ```bash
+   chmod +x deploy.sh
+   ./deploy.sh
+   ```
+
+#### Ручной деплой
+
+1. **Копируйте файлы на сервер:**
+   ```bash
+   rsync -avz --exclude 'node_modules' --exclude '.git' \
+       ./ ubuntu@your-server-ip:/home/ubuntu/obsidian-blogger/
+   ```
+
+2. **На сервере установите Docker:**
+   ```bash
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+   sudo usermod -aG docker $USER
+   ```
+
+3. **Запустите приложение:**
+   ```bash
+   cd /home/ubuntu/obsidian-blogger
+   docker-compose up -d
+   ```
+
+### 2. Amazon ECS (Для масштабирования)
+
+#### Создание ECS кластера
+
+1. **Создайте ECS кластер:**
+   - Тип: Fargate (serverless)
+   - VPC: создайте новую или используйте существующую
+
+2. **Создайте Task Definition:**
+   ```json
+   {
+     "family": "obsidian-blogger",
+     "networkMode": "awsvpc",
+     "requiresCompatibilities": ["FARGATE"],
+     "cpu": "256",
+     "memory": "512",
+     "executionRoleArn": "arn:aws:iam::account:role/ecsTaskExecutionRole",
+     "containerDefinitions": [
+       {
+         "name": "obsidian-blogger",
+         "image": "your-account.dkr.ecr.region.amazonaws.com/obsidian-blogger:latest",
+         "portMappings": [
+           {
+             "containerPort": 4321,
+             "protocol": "tcp"
+           }
+         ],
+         "environment": [
+           {
+             "name": "NODE_ENV",
+             "value": "production"
+           }
+         ],
+         "secrets": [
+           {
+             "name": "TELEGRAM_BOT_TOKEN",
+             "valueFrom": "arn:aws:secretsmanager:region:account:secret:telegram-bot-token"
+           }
+         ]
+       }
+     ]
+   }
+   ```
+
+### 3. AWS Lambda + API Gateway (Serverless)
+
+#### Создание Lambda функции
+
+1. **Создайте Lambda функцию:**
+   - Runtime: Node.js 18.x
+   - Handler: src/lambda.handler
+   - Timeout: 30 секунд
+   - Memory: 512 MB
+
+2. **Создайте API Gateway:**
+   - Тип: REST API
+   - Интегрируйте с Lambda
+
+## Мониторинг и логирование
+
+### CloudWatch Logs
+
+Добавьте в код логирование в CloudWatch:
+
+```javascript
+const AWS = require('aws-sdk');
+const cloudwatch = new AWS.CloudWatchLogs();
+
+// Логирование в CloudWatch
+async function logToCloudWatch(message, level = 'INFO') {
+  const logGroupName = '/aws/lambda/obsidian-blogger';
+  const logStreamName = new Date().toISOString().split('T')[0];
+  
+  try {
+    await cloudwatch.putLogEvents({
+      logGroupName,
+      logStreamName,
+      logEvents: [{
+        timestamp: Date.now(),
+        message: `[${level}] ${message}`
+      }]
+    }).promise();
+  } catch (error) {
+    console.error('Failed to log to CloudWatch:', error);
+  }
+}
 ```
 
-Run the development server:
+### Health Check
+
+Добавьте endpoint для проверки здоровья:
+
+```javascript
+// В src/index.js
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+```
+
+## SSL сертификаты
+
+### Let's Encrypt (бесплатно)
+
 ```bash
-npm run dev
+# Установите Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Получите сертификат
+sudo certbot --nginx -d your-domain.com
+
+# Автообновление
+sudo crontab -e
+# Добавьте: 0 12 * * * /usr/bin/certbot renew --quiet
 ```
 
-### 2. GitHub Pages
+### AWS Certificate Manager
 
-If your repository is at `github.com/username/repo-name`:
+1. Запросите сертификат в ACM
+2. Привяжите к Load Balancer или CloudFront
 
-```env
-SITE_URL=https://username.github.io
-BASE_URL=/repo-name/
+## Резервное копирование
+
+### Автоматическое резервное копирование
+
+```bash
+#!/bin/bash
+# backup.sh
+
+DATE=$(date +%Y%m%d_%H%M%S)
+BACKUP_DIR="/backups/obsidian-blogger"
+
+# Создаем резервную копию данных
+tar -czf "$BACKUP_DIR/backup_$DATE.tar.gz" \
+    output/ drafts/ telegraph_token.json telegraph_cache.json
+
+# Удаляем старые резервные копии (старше 30 дней)
+find $BACKUP_DIR -name "backup_*.tar.gz" -mtime +30 -delete
+
+# Загружаем в S3
+aws s3 cp "$BACKUP_DIR/backup_$DATE.tar.gz" \
+    s3://your-bucket/obsidian-blogger/backups/
 ```
 
-#### Automatic Deployment
+## Масштабирование
 
-1. Create `.github/workflows/deploy.yml`:
+### Auto Scaling (EC2)
 
-```yaml
-name: Deploy to GitHub Pages
+```bash
+# Создайте Launch Template
+aws ec2 create-launch-template \
+    --launch-template-name obsidian-blogger-template \
+    --version-description v1 \
+    --launch-template-data '{"ImageId":"ami-123456","InstanceType":"t3.micro"}'
 
-on:
-  push:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 18
-      - name: Install dependencies
-        run: npm ci
-      - name: Build website
-        run: npm run build
-        env:
-          SITE_URL: https://<username>.github.io
-          BASE_URL: /<repo-name>/
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+# Создайте Auto Scaling Group
+aws autoscaling create-auto-scaling-group \
+    --auto-scaling-group-name obsidian-blogger-asg \
+    --launch-template LaunchTemplateName=obsidian-blogger-template \
+    --min-size 1 --max-size 3 --desired-capacity 1
 ```
 
-2. Enable GitHub Pages in your repository settings:
-   - Source: GitHub Actions
+### Load Balancer
 
-### 3. Custom Domain
-
-If your site is at `yourdomain.com`:
-
-```env
-SITE_URL=https://yourdomain.com
-BASE_URL=/
+```bash
+# Создайте Application Load Balancer
+aws elbv2 create-load-balancer \
+    --name obsidian-blogger-alb \
+    --subnets subnet-123456 subnet-789012 \
+    --security-groups sg-123456
 ```
 
-#### Netlify Deployment
+## Стоимость
 
-1. Add environment variables in Netlify dashboard:
-   - Key: `SITE_URL`, Value: `https://yourdomain.com`
-   - Key: `BASE_URL`, Value: `/`
+### EC2 (t3.micro)
+- **Стоимость:** ~$8-15/месяц
+- **Подходит для:** небольших проектов, тестирования
 
-2. Configure build settings:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
+### ECS Fargate
+- **Стоимость:** ~$15-30/месяц
+- **Подходит для:** продакшена, масштабирования
 
-#### Vercel Deployment
+### Lambda
+- **Стоимость:** ~$1-5/месяц (зависит от количества запросов)
+- **Подходит для:** редких запросов, экономии
 
-1. Add environment variables in Vercel dashboard:
-   - Key: `SITE_URL`, Value: `https://yourdomain.com`
-   - Key: `BASE_URL`, Value: `/`
+## Безопасность
 
-2. The build settings should be auto-detected
-
-## URL Handling
-
-The site automatically handles URLs using the utility functions in `src/utils/url.ts`:
-
-```typescript
-// Get correct URL for any path
-import { getUrl } from '../utils/url';
-
-// Usage in components
-<a href={getUrl('/blog')}>Blog</a>
+### IAM роли
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents"
+      ],
+      "Resource": "arn:aws:logs:*:*:*"
+    }
+  ]
+}
 ```
 
-## Important Notes
+### Security Groups
+- **Inbound:** только необходимые порты (22, 80, 443)
+- **Outbound:** все исходящие разрешены
 
-1. Always ensure `SITE_URL` does not end with a slash
-2. Always ensure `BASE_URL` starts and ends with a slash
-3. For GitHub Pages, `BASE_URL` must match your repository name
-4. For custom domains, use `/` as `BASE_URL`
-5. Update your sitemap configuration in `astro.config.mjs` if needed
+### Secrets Manager
+```bash
+# Сохраните токены в Secrets Manager
+aws secretsmanager create-secret \
+    --name telegram-bot-token \
+    --secret-string '{"token":"your-telegram-token"}'
+```
 
-## Troubleshooting
+## Устранение неполадок
 
-1. **404 errors on subpages**:
-   - Check if `BASE_URL` is correctly set
-   - Ensure all internal links use the `getUrl()` function
+### Проверка логов
+```bash
+# Docker контейнер
+docker-compose logs -f obsidian-blogger
 
-2. **Assets not loading**:
-   - Ensure all asset URLs use the `getUrl()` function
-   - Check if public assets are in the correct directory
+# Systemd сервис
+sudo journalctl -u obsidian-blogger -f
 
-3. **GitHub Pages not updating**:
-   - Check GitHub Actions workflow status
-   - Ensure GitHub Pages is enabled in repository settings
+# CloudWatch
+aws logs tail /aws/lambda/obsidian-blogger --follow
+```
 
-## Need Help?
+### Мониторинг ресурсов
+```bash
+# CPU и память
+htop
 
-If you encounter any issues:
-1. Check the [Astro deployment docs](https://docs.astro.build/en/guides/deploy/)
-2. Open an issue in the GitHub repository
-3. Check existing issues for similar problems 
+# Дисковое пространство
+df -h
+
+# Сетевые соединения
+netstat -tulpn
+``` 
